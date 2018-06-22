@@ -2,6 +2,7 @@ import numpy as np
 from pak.datasets.CUHK03 import cuhk03
 from pak.datasets.Market1501 import Market1501
 from pak.datasets.DukeMTMC import DukeMTMC_reID
+from pak.datasets.UMPM import UMPM
 from os import makedirs
 from os.path import join, isfile, isdir
 
@@ -23,15 +24,24 @@ class DataSampler:
     """ helps to sample person-ReId data from different sources
     """
 
-    def __init__(self, root, target_w, target_h, cuhk03_test_T=100):
+    def __init__(self, root, target_w, target_h, cuhk03_test_T=100,
+                 umpm_datasets=['p2_chair_2'], umpm_user=None,
+                 umpm_password=None):
         """
-        root: root folder for data
-        target_w: {int} force all data to be of this w
-        target_h: {int} force all data to be of this h
-        cuhk03_test_T: {int} for the cuhk03 dataset: all ids > T are
+        :param root: root folder for data
+        :param target_w: {int} force all data to be of this w
+        :param target_h: {int} force all data to be of this h
+        :param cuhk03_test_T: {int} for the cuhk03 dataset: all ids > T are
             set as training data, the rest is test. This is not needed
             for Market and Duke as they come with their own train/test sets
+        :param umpm_datasets [{string}, ... ] defines which datasets are
+            being used for
+        :param umpm_user: must be set if len(umpm_datasets) > 0
+        :param umpm_password: must be set if len(umpm_datasets) > 0
         """
+        if umpm_datasets is not None and len(umpm_datasets) > 0:
+            assert umpm_user is not None
+            assert umpm_password is not None
         self.root = join(root, "DataSampler")
         if not isdir(self.root):
             makedirs(self.root)
@@ -52,7 +62,6 @@ class DataSampler:
         self.duke_X, self.duke_Y, self.duke_pos_pairs, \
             self.duke_X_test, self.duke_Y_test, self.duke_pos_pairs_test = \
             self.handle(duke, 'duke')
-
 
     def handle(self, dataset, dataset_name):
         """ handle Market and Duke
@@ -82,22 +91,19 @@ class DataSampler:
 
         return X, Y, pos_pairs_train, X_test, Y_test, pos_pairs_test
 
-
     def get_pos_pairs_file_name(self, dataset):
         """ gets the file name for the positive pairs
         """
         file_name = 'positive_pairs_' + dataset + '.npy'
         return join(self.root, file_name)
 
-    #TODO properly refactor this whole mess..
     def get_train_batch(self, num_pos, num_neg):
         """ gets a random batch from the test sets
         """
-        num_pos_left, num_neg_left = num_pos, num_neg
         pos_split, neg_split = int(num_pos/3), int(num_neg/3)
-        X1, Y1 = self.sample_generic_batch(pos_split, neg_split,
+        X1, Y1 = DataSampler.sample_generic_batch(pos_split, neg_split,
             self.market_X, self.market_Y, self.market_pos_pairs)
-        X2, Y2 = self.sample_generic_batch(pos_split, neg_split,
+        X2, Y2 = DataSampler.sample_generic_batch(pos_split, neg_split,
             self.duke_X, self.duke_Y, self.duke_pos_pairs)
         X3, Y3 = self.get_cuhk_train_batch(num_pos-2*pos_split,num_neg-2*neg_split)
 
@@ -110,7 +116,6 @@ class DataSampler:
 
         return X[order], Y[order]
 
-
     def get_test_batch(self, num_pos, num_neg):
         """ gets a random batch from the test sets
         """
@@ -118,9 +123,9 @@ class DataSampler:
         assert num_neg > 2
         num_pos_left, num_neg_left = num_pos, num_neg
         pos_split, neg_split = int(num_pos/3), int(num_neg/3)
-        X1, Y1 = self.sample_generic_batch(pos_split, neg_split,
+        X1, Y1 = DataSampler.sample_generic_batch(pos_split, neg_split,
             self.market_X_test, self.market_Y_test, self.market_pos_pairs_test)
-        X2, Y2 = self.sample_generic_batch(pos_split, neg_split,
+        X2, Y2 = DataSampler.sample_generic_batch(pos_split, neg_split,
             self.duke_X_test, self.duke_Y_test, self.duke_pos_pairs_test)
         X3, Y3 = self.get_cuhk_test_batch(num_pos-2*pos_split,num_neg-2*neg_split)
 
@@ -133,7 +138,8 @@ class DataSampler:
 
         return X[order], Y[order]
 
-    def sample_generic_batch(self, num_pos, num_neg, X, Y, pos_pairs):
+    @staticmethod
+    def sample_generic_batch(num_pos, num_neg, X, Y, pos_pairs):
         """ generic batch-sampling for Market and Duke. This function
             does not work on cuhk!
         """
