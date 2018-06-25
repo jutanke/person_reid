@@ -87,6 +87,10 @@ class UMPMSampler:
             person2 = 0 if person1 == 1 else 1
 
         dataset = randint(0, self.n)  # choose dataset
+        if end < 0:
+            end = len(self.Xs[dataset]['l'])
+        assert 0 <= start < end
+        assert end <= len(self.Xs[dataset]['l'])
         frame1, frame2 = randint(start, end, 2)  # frames
         cid1, cid2 = randint(0, 4, 2)  # camera
         cid1 = self.cameras[cid1]
@@ -114,6 +118,24 @@ class UMPMSampler:
         """
         start = 0
         end = 100
+        X = []
+        Y = []
+        for i in range(batch_size):
+            same_person = random() > 0.5
+            im1, im2 = self.get_random_sample(start, end, same_person)
+            X.append((im1, im2))
+            Y.append([1, 0] if same_person else [0, 1])
+
+        return np.array(X), np.array(Y)
+
+    def get_train(self, batch_size=32):
+        """
+
+        :param batch_size:
+        :return:
+        """
+        start = 100
+        end = -1
         X = []
         Y = []
         for i in range(batch_size):
