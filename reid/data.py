@@ -3,11 +3,123 @@ from pak.datasets.CUHK03 import cuhk03
 from pak.datasets.Market1501 import Market1501
 from pak.datasets.DukeMTMC import DukeMTMC_reID
 from pak.datasets.UMPM import UMPM
+from pak.datasets.MOT import MOT16
+from pak import utils
 from os import makedirs
 from os.path import join, isfile, isdir
 import cv2
 from numpy.random import randint
 from random import random
+from numpy.random import choice
+
+
+# --- MOT16 ---
+class MOT16Sampler:
+
+    @staticmethod
+    def get_visible_pedestrains(Y_gt):
+        """ return people without distractors
+        """
+        Y_gt = utils.extract_eq(Y_gt, col=7, value=1)
+        Y_gt = utils.extract_eq(Y_gt, col=8, value=1)
+        return Y_gt
+
+    def __init__(self, root, target_w, target_h):
+        mot16 = MOT16(root)
+        self.target_w = target_w
+        self.target_h = target_h
+        X, _, Y_gt = mot16.get_train("MOT16-02", memmapped=True)
+        Y_gt = MOT16Sampler.get_visible_pedestrains(Y_gt)  # only humans
+        n_frames, h, w, _ = X.shape
+
+        self.lookup = {}
+        self.pid_frame_lookup = {}
+        self.X = X
+        self.n_frames = n_frames
+        self.frames_with_persons = []
+        self.pids_per_frame = {}
+
+        for f in range(n_frames):
+            Gt_per_frame = utils.extract_eq(Y_gt, col=0, value=f)
+            n = len(Gt_per_frame)
+            pids = Gt_per_frame[:, 1]
+            left = Gt_per_frame[:, 2]
+            top = Gt_per_frame[:, 3]
+            width = Gt_per_frame[:, 4]
+            height = Gt_per_frame[:, 5]
+            valid_persons = 0
+            valid_pids = []
+            for pid, x, y, w, h in zip(*[pids, left, top, width, height]):
+                # only take bbs that are 'big' enough
+                if w > 50 and h > 100:
+                    pid = int(pid)
+                    if pid not in self.lookup:
+                        self.lookup[pid] = []
+                    self.lookup[pid].append(f)
+                    H, W, _ = X[f].shape
+                    x_left = max(0, int(x))
+                    y_top = max(0, int(y))
+                    x_right = min(W - 1, int(x + w))
+                    y_bottom = min(H - 1, int(y + h))
+                    self.pid_frame_lookup[pid, f] = \
+                        (x_left, y_top, x_right, y_bottom)
+
+                    valid_persons += 1
+                    valid_pids.append(pid)
+
+            self.pids_per_frame[f] = valid_pids
+
+            if valid_persons > 1:
+                self.frames_with_persons.append(f)
+
+        print('(MOT16) total number of bounding boxes:', len(self.pid_frame_lookup))
+
+    def sample(self, batchsize=16):
+        """ get a set of pairs
+        """
+        size = (self.target_w, self.target_h)
+        pids = list(self.lookup.keys())
+        X = np.zeros((batchsize, self.target_h, self.target_w, 6))
+        Y = []
+        for idx in range(batchsize):
+            if random() > 0.5:  # get the same pair
+                Y.append((1, 0))
+                pid1 = pids[randint(0, len(pids))]
+                pid2 = pid1
+                possible_frames = self.lookup[pid1]
+                assert len(possible_frames) > 1
+                f1, f2 = choice(possible_frames, 2, replace=False)
+
+            else:  # get a different pair
+                Y.append((0, 1))
+                f1, f2 = choice(self.frames_with_persons, 2)
+                pid1, pid2 = -1, -1
+                while pid1 == pid2:  # make sure we get two
+                    # different persons
+                    pid1 = choice(self.pids_per_frame[f1])
+                    pid2 = choice(self.pids_per_frame[f2])
+
+            im1 = cv2.resize(self.crop_bb(f1, pid1), size)
+            im2 = cv2.resize(self.crop_bb(f2, pid2), size)
+
+            X[idx, :, :, 0:3] = im1
+            X[idx, :, :, 3:6] = im2
+
+        return X, np.array(Y)
+
+    def crop_bb(self, frame, pid, fizzle=5):
+        """
+        """
+        fz1, fz2, fz3, fz4 = randint(-fizzle, fizzle, 4)
+        im = self.X[frame]
+        H, W, _ = im.shape
+        res = self.pid_frame_lookup[pid, frame]
+        x_left, y_top, x_right, y_bottom = res
+        x_left = max(0, x_left + fz1)
+        x_right = min(W - 1, x_right + fz2)
+        y_top = max(0, y_top + fz3)
+        y_bottom = min(H - 1, y_bottom + fz4)
+        return im[y_top:y_bottom, x_left:x_right]
 
 
 def get_positive_pairs_by_index(Y):
@@ -23,7 +135,7 @@ def get_positive_pairs_by_index(Y):
     return np.array(positive_pairs)
 
 
-def get_bb(cam, pts3d):
+def get_bb(cam, pts3d, W=644, H=486, juggle=50):
     """ return (x, y, w, h)
     """
     assert len(pts3d) == 15
@@ -40,11 +152,11 @@ def get_bb(cam, pts3d):
     y_max = np.max(pts2d[:, 1])
     y_min = np.min(pts2d[:, 1])
 
-    n1, n2, n3, n4 = randint(0, 50, 4)
+    n1, n2, n3, n4 = randint(0, juggle, 4)
     y = max(y_min - n1, 0)
     x = max(x_min - n2, 0)
-    w = min(x_max - x + n3, 644)
-    h = min(y_max - y + n4, 486)
+    w = min(x_max - x + n3, W)
+    h = min(y_max - y + n4, H)
     return int(x), int(y), int(w), int(h)
 
 
@@ -118,15 +230,16 @@ class UMPMSampler:
         """
         start = 0
         end = 100
-        X = []
+        X = np.zeros((batch_size, self.h, self.w, 6))
         Y = []
         for i in range(batch_size):
             same_person = random() > 0.5
             im1, im2 = self.get_random_sample(start, end, same_person)
-            X.append((im1, im2))
+            X[i, :, :, 0:3] = im1
+            X[i, :, :, 3:6] = im2
             Y.append([1, 0] if same_person else [0, 1])
 
-        return np.array(X), np.array(Y)
+        return X, np.array(Y)
 
     def get_train(self, batch_size=32):
         """
@@ -136,15 +249,16 @@ class UMPMSampler:
         """
         start = 100
         end = -1
-        X = []
+        X = np.zeros((batch_size, self.h, self.w, 6))
         Y = []
         for i in range(batch_size):
             same_person = random() > 0.5
             im1, im2 = self.get_random_sample(start, end, same_person)
-            X.append((im1, im2))
+            X[i, :, :, 0:3] = im1
+            X[i, :, :, 3:6] = im2
             Y.append([1, 0] if same_person else [0, 1])
 
-        return np.array(X), np.array(Y)
+        return X, np.array(Y)
 
 
 class DataSampler:
