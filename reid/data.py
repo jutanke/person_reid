@@ -33,10 +33,11 @@ class Data:
                                  target_w, target_h)
         self.reid = DataSampler(root, target_w, target_h)
 
-    def train(self, batchsize=32):
+    def train(self, batchsize=32, add_noise=True):
         """
 
         :param batchsize:
+        :param add_noise: {boolean}
         :return:
         """
         bs1 = int(batchsize / 4)
@@ -51,7 +52,33 @@ class Data:
 
         X = np.concatenate([x1, x2, x3], axis=0)
         Y = np.concatenate([y1, y2, y3], axis=0)
-        return X, Y
+
+        if add_noise:
+            size = np.prod(X.shape)
+            noise = randint(-10, 10, size=size).reshape(X.shape)
+            X = np.clip(X + noise, 0, 255)
+
+        n = batchsize
+        order = np.random.choice(n, size=n, replace=False)
+        return X[order], Y[order]
+
+    def test(self, batchsize=16):
+        """
+
+        :param batchsize:
+        :return:
+        """
+        bs1 = int(batchsize / 4)
+        bs2 = batchsize - bs1
+        bs2_pos = int(bs2 / 2)
+        bs2_neg = bs2 - bs2_pos
+        x1, y1 = self.umpm.get_test(bs1)
+        x2, y2 = self.reid.get_test_batch(bs2_pos, bs2_neg)
+        X = np.concatenate([x1, x2], axis=0)
+        Y = np.concatenate([y1, y2], axis=0)
+        n = batchsize
+        order = np.random.choice(n, size=n, replace=False)
+        return X[order], Y[order]
 
 
 # --- MOT16 ---
