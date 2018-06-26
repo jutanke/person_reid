@@ -13,6 +13,47 @@ from random import random
 from numpy.random import choice
 
 
+class Data:
+    """
+    Samples data from all samplers
+    """
+
+    def __init__(self, root, target_w, target_h,
+                  umpm_user, umpm_password, umpm_datasets=['p2_chair_2']):
+        """
+        :param root:
+        :param target_w:
+        :param target_h:
+        :return:
+        """
+        self.mot16 = MOT16Sampler(root, target_w, target_h)
+        self.umpm = UMPMSampler(root,
+                                 umpm_datasets,
+                                 umpm_user, umpm_password,
+                                 target_w, target_h)
+        self.reid = DataSampler(root, target_w, target_h)
+
+    def train(self, batchsize=32):
+        """
+
+        :param batchsize:
+        :return:
+        """
+        bs1 = int(batchsize / 4)
+        bs2 = int(batchsize / 4)
+        bs3 = batchsize - bs1 - bs2
+        bs3_pos = int(bs3/2)
+        bs3_neg = bs3 - bs3_pos
+
+        x1, y1 = self.mot16.sample(bs1)
+        x2, y2 = self.umpm.get_train(bs2)
+        x3, y3 = self.reid.get_train_batch(bs3_pos, bs3_neg)
+
+        X = np.concatenate([x1, x2, x3], axis=0)
+        Y = np.concatenate([y1, y2, y3], axis=0)
+        return X, Y
+
+
 # --- MOT16 ---
 class MOT16Sampler:
 
