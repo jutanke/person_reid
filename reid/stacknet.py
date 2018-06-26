@@ -1,5 +1,5 @@
 from keras.applications.vgg16 import VGG16
-from keras.layers import  Flatten, Dense, Conv2D, MaxPooling2D
+from keras.layers import  Flatten, Dense, Conv2D, MaxPooling2D, Dropout
 from keras.models import Sequential
 import numpy as np
 from keras.optimizers import SGD, RMSprop
@@ -62,9 +62,11 @@ def get_model(lr=0.01, w=64, h=64, train_upper_layers=True):
     model.add(MaxPooling2D(pool_size=(2,2), strides=(2, 2), name='block5_pool'))
 
     model.add(Flatten())
-    model.add(Dense(4096, activation='relu'))
-    model.add(Dense(4096, activation='relu'))
-    model.add(Dense(2, activation='softmax'))
+    model.add(Dropout(0.5))
+    model.add(Dense(2096, activation='relu'))
+    model.add(Dropout(0.5))
+    #model.add(Dense(4096, activation='relu'))
+    model.add(Dense(1, activation='sigmoid'))
 
     # --- set the fixed weights ---
     W, bias = vgg_model.layers[1].get_weights()
@@ -75,8 +77,5 @@ def get_model(lr=0.01, w=64, h=64, train_upper_layers=True):
     for i in range(1, len(vgg_model.layers)-1):
         model.layers[i].set_weights(vgg_model.layers[i+1].get_weights())
 
-    #opt = SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True)
-    opt = RMSprop()
-    model.compile(optimizer=opt, loss='binary_crossentropy')
 
     return model
