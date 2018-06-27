@@ -1,6 +1,5 @@
 from keras.models import load_model
-from keras.applications.vgg16 import preprocess_input
-#from keras.applications.densenet import preprocess_input
+from keras.applications.densenet import preprocess_input
 from os.path import isfile, isdir, join
 from os import makedirs
 from pak.util import download as dl
@@ -15,8 +14,8 @@ class ReId:
             create a new instance of the ReId network
         :param root:
         """
-        url = 'http://188.138.127.15:81/models/stacknet64x64_84_BOTH.h5'
-        name = 'stacknet64x64_84_BOTH.h5'
+        url = 'http://188.138.127.15:81/models/model_heavy_89acc.h5'
+        name = 'model_heavy_89acc.h5'
         if not isdir(root):
             makedirs(root)
 
@@ -34,19 +33,20 @@ class ReId:
         :param B:
         :return:
         """
-        s1 = 128
-        s2 = 64
+        s1 = 221
+        s2 = 221
         size = (s1, s2)
         if isinstance(A, list) or len(A.shape) == 4:
             assert len(A) == len(B)
             n = len(A)
             assert n > 0
-            X = np.zeros((n, s1, s2, 6))
+            Xa = np.zeros((n, s1, s2, 3))
+            Xb = np.zeros((n, s1, s2, 3))
             for idx, (a, b) in enumerate(zip(A, B)):
-                X[idx, :, :, 0:3] = cv2.resize(a, size)
-                X[idx, :, :, 3:6] = cv2.resize(b, size)
-            X[:, :, :, 0:3] = preprocess_input(X[:, :, :, 0:3])
-            X[:, :, :, 3:6] = preprocess_input(X[:, :, :, 3:6])
+                Xa[idx, :, :, :] = cv2.resize(a, size)
+                Xb[idx, :, :, :] = cv2.resize(b, size)
+            Xa = preprocess_input(Xa)
+            Xb = preprocess_input(Xb)
         elif len(A.shape) == 3:
             a = A
             b = B
@@ -59,12 +59,12 @@ class ReId:
                 a = cv2.resize(a, size)
             if w2 != s1 or h2 != s2:
                 b = cv2.resize(b, size)
-            X = np.concatenate([
-                preprocess_input(a.astype('float64')), 
-                preprocess_input(b.astype('float64'))], axis=2)
-            X = np.expand_dims(X, axis=0)
+            Xa = preprocess_input(a.astype('float64'))
+            Xb = preprocess_input(b.astype('float64'))
+            Xa = np.expand_dims(Xa, axis=0)
+            Xb = np.expand_dims(Xb, axis=0)
         else:
-            raise ValueError('wrong input shape' + str(a.shape))
+            raise ValueError('wrong input shape' + str(A.shape))
         
-        Y = self.model.predict(X/255)
-        return Y[:,0]
+        Y = self.model.predict([Xa, Xb])
+        return Y[:, 0]
