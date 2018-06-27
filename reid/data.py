@@ -40,14 +40,14 @@ class Data:
                                  target_w, target_h)
         self.reid = DataSampler(root, target_w, target_h)
 
-    def train(self, batchsize=16, add_noise=True):
+    def train(self, batchsize=16, add_noise=True, umpm_div=4):
         """
 
         :param batchsize:
         :param add_noise: {boolean}
         :return:
         """
-        bs1 = int(batchsize / 4)
+        bs1 = int(batchsize / umpm_div)
         bs2 = int(batchsize / 4)
         bs3 = batchsize - bs1 - bs2
         bs3_pos = int(bs3/2)
@@ -73,13 +73,13 @@ class Data:
         order = np.random.choice(n, size=n, replace=False)
         return X[order], Y[order]
 
-    def test(self, batchsize=16):
+    def test(self, batchsize=16, umpm_div=4):
         """
 
         :param batchsize:
         :return:
         """
-        bs1 = int(batchsize / 4)
+        bs1 = int(batchsize / umpm_div)
         bs2 = batchsize - bs1
         bs2_pos = int(bs2 / 2)
         bs2_neg = bs2 - bs2_pos
