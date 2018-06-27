@@ -1,6 +1,8 @@
 # person re-identification
 Simple python model for person re-identification.
 
+![samples](https://user-images.githubusercontent.com/831215/41969613-554747a0-7a08-11e8-9adc-6c3107c8b383.png)
+
 ## Install
 This library was developed using Python 3.6, numpy, 
 Keras 2.x and tensorflow 1.8 so make sure you have them
@@ -34,3 +36,7 @@ After you have covered all prerequisite you can install this library as follows:
 ```bash
 pip install git+https://github.com/jutanke/person_reid.git
 ```
+
+## Model
+
+![person_reid](https://user-images.githubusercontent.com/831215/41969619-58d6486c-7a08-11e8-9112-edececec90a6.png)
