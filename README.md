@@ -1,5 +1,23 @@
 # person re-identification
 Simple python model for person re-identification.
+Use as follows:
+```python
+import cv2
+from reid import reid
+
+im1 = cv2.cvtColor(cv2.imread('/path/to/file1.png'), cv2.COLOR_BGR2RGB)
+im2 = cv2.cvtColor(cv2.imread('/path/to/file2.png'), cv2.COLOR_BGR2RGB)
+
+# im1 / im2 can either be images or lists of images. In case of lists
+# prediction is done item-wise
+
+model = reid.ReId()
+score = model.predict(im1, im2)
+```
+
+The model will give a score below 0.5 if it believes the two persons are not the same and a value
+larger than 0.5 if it thinks it got the same people. Below are some sample pairs of images the
+model has never seen before (thx [Joao](https://github.com/jvmartins)):
 
 ![samples](https://user-images.githubusercontent.com/831215/41969613-554747a0-7a08-11e8-9adc-6c3107c8b383.png)
 
@@ -38,5 +56,8 @@ pip install git+https://github.com/jutanke/person_reid.git
 ```
 
 ## Model
-
+The model is a quite simple Siamese Network using [DenseNet](https://arxiv.org/pdf/1608.06993.pdf) as feature extractor.
 ![person_reid](https://user-images.githubusercontent.com/831215/41969619-58d6486c-7a08-11e8-9112-edececec90a6.png)
+
+Below the training and validation accuracy is being reported:
+![training](https://user-images.githubusercontent.com/831215/41971249-0afffc68-7a0e-11e8-9d36-906d97b128e9.png)
