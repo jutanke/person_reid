@@ -10,8 +10,15 @@ from os.path import join, isfile, isdir
 import cv2
 from numpy.random import randint
 from random import random
-from numpy.random import choice
+from numpy.random import choice, uniform
 
+
+def random_contrast_brightness(im):
+    """
+    """
+    alpha = uniform(0.5, 3)
+    beta = uniform(-50, 50)
+    return np.clip(alpha * im + beta, 0, 255).astype('uint8')
 
 class Data:
     """
@@ -33,7 +40,7 @@ class Data:
                                  target_w, target_h)
         self.reid = DataSampler(root, target_w, target_h)
 
-    def train(self, batchsize=32, add_noise=True):
+    def train(self, batchsize=16, add_noise=True):
         """
 
         :param batchsize:
@@ -55,9 +62,13 @@ class Data:
 
         if add_noise:
             size = np.prod(X.shape)
-            noise = randint(-10, 10, size=size).reshape(X.shape)
+            noise = randint(-3, 3, size=size).reshape(X.shape)
             X = np.clip(X + noise, 0, 255)
 
+        for idx in range(batchsize):
+            X[idx, :, :, 0:3] = random_contrast_brightness(X[idx, :, :, 0:3])
+            X[idx, :, :, 3:6] = random_contrast_brightness(X[idx, :, :, 3:6])
+        
         n = batchsize
         order = np.random.choice(n, size=n, replace=False)
         return X[order], Y[order]
