@@ -9,7 +9,7 @@ import numpy as np
 
 class ReId:
 
-    def __init__(self, root='/tmp'):
+    def __init__(self, root='/tmp', filepath=None):
         """
             create a new instance of the ReId network
         :param root:
@@ -18,11 +18,12 @@ class ReId:
         name = 'model_heavy_89acc.h5'
         if not isdir(root):
             makedirs(root)
-
-        filepath = join(root, name)
-        if not isfile(filepath):
-            print('could not find model.. downloading it')
-            dl.download(url, filepath)
+        
+        if filepath is None:
+            filepath = join(root, name)
+            if not isfile(filepath):
+                print('could not find model.. downloading it')
+                dl.download(url, filepath)
 
         self.model = load_model(filepath)
 

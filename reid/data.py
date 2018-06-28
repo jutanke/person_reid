@@ -16,8 +16,8 @@ from numpy.random import choice, uniform
 def random_contrast_brightness(im):
     """
     """
-    alpha = uniform(0.5, 3)
-    beta = uniform(-50, 50)
+    alpha = uniform(0.1, 1.1)
+    beta = uniform(-10, 10)
     return np.clip(alpha * im + beta, 0, 255).astype('uint8')
 
 class Data:
@@ -40,15 +40,18 @@ class Data:
                                  target_w, target_h)
         self.reid = DataSampler(root, target_w, target_h)
 
-    def train(self, batchsize=16, add_noise=True, umpm_div=4):
+    def train(self, batchsize=16, 
+              add_noise=True, 
+              umpm_div=4, 
+              mot16_div=4):
         """
 
         :param batchsize:
         :param add_noise: {boolean}
         :return:
         """
-        bs1 = int(batchsize / umpm_div)
-        bs2 = int(batchsize / 4)
+        bs1 = int(batchsize / mot16_div)
+        bs2 = int(batchsize / umpm_div)
         bs3 = batchsize - bs1 - bs2
         bs3_pos = int(bs3/2)
         bs3_neg = bs3 - bs3_pos
