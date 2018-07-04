@@ -9,13 +9,15 @@ import numpy as np
 
 class ReId:
 
-    def __init__(self, root='/tmp'):
+    def __init__(self, root='/tmp', url=None, name=None):
         """
             create a new instance of the ReId network
         :param root:
         """
-        url = 'http://188.138.127.15:81/models/model_heavy_89acc.h5'
-        name = 'model_heavy_89acc.h5'
+        if url is None:
+            url = 'http://188.138.127.15:81/models/model_heavy_89acc.h5'
+        if name is None:
+            name = 'model_heavy_89acc.h5'
         if not isdir(root):
             makedirs(root)
 
