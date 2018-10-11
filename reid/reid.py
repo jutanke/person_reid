@@ -34,8 +34,7 @@ class ReId:
         if keras.__version__ == '2.1.3':
             self.model = load_model(filepath)
         else:
-            warnings.warn("This model only works properly with keras 2.1.3."
-                          " Weights for other versions might not work properly")
+            warnings.warn("This model only works properly with keras 2.1.3. Weights for other versions might not work properly")
             # see bug https://github.com/jutanke/person_reid/issues/2
             with h5py.File(filepath, 'r') as f:
                 model_weights = f.get('model_weights')
