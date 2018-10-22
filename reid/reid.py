@@ -55,10 +55,10 @@ class ReId:
                 out_b = seq(input_b)
 
                 concatenated = concatenate([out_a, out_b])
-                hidden_drp1 = Dropout(0.5)(concatenated)
-                hidden = Dense(32, activation='relu', name='hidden')(hidden_drp1)
-                hidden_drp2 = Dropout(0.5)(hidden)
-                out = Dense(1, activation='sigmoid', name='out')(hidden_drp2)
+                #hidden_drp1 = Dropout(0.5)(concatenated)
+                hidden = Dense(32, activation='relu', name='hidden')(concatenated)
+                #hidden_drp2 = Dropout(0.5)(hidden)
+                out = Dense(1, activation='sigmoid', name='out')(hidden)
 
                 model = Model([input_a, input_b], out)
                 self.model = model

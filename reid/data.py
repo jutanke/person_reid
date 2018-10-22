@@ -16,17 +16,17 @@ from numpy.random import choice, uniform
 def random_contrast_brightness(im):
     """
     """
-    alpha = uniform(0.5, 3)
-    beta = uniform(-50, 50)
+    alpha = uniform(0.8, 1.1)
+    beta = uniform(-10, 10)
     return np.clip(alpha * im + beta, 0, 255).astype('uint8')
+
 
 class Data:
     """
     Samples data from all samplers
     """
 
-    def __init__(self, root, target_w, target_h,
-                  umpm_user, umpm_password, umpm_datasets=['p2_chair_2']):
+    def __init__(self, root, target_w, target_h):
         """
         :param root:
         :param target_w:
@@ -34,31 +34,38 @@ class Data:
         :return:
         """
         self.mot16 = MOT16Sampler(root, target_w, target_h)
-        self.umpm = UMPMSampler(root,
-                                 umpm_datasets,
-                                 umpm_user, umpm_password,
-                                 target_w, target_h)
+        #self.mot16 = MOT16Sampler(root, target_w, target_h, video='MOT16-05')
+        self.mot16 = [
+            MOT16Sampler(root, target_w, target_h),
+            MOT16Sampler(root, target_w, target_h, video='MOT16-05'),
+            MOT16Sampler(root, target_w, target_h, video='MOT16-09'),
+            MOT16Sampler(root, target_w, target_h, video='MOT16-10'),
+            MOT16Sampler(root, target_w, target_h, video='MOT16-11'),
+            MOT16Sampler(root, target_w, target_h, video='MOT16-13')
+        ]
+
+        self.mot16_test = MOT16Sampler(root, target_w, target_h, video='MOT16-04')
         self.reid = DataSampler(root, target_w, target_h)
 
-    def train(self, batchsize=16, add_noise=True, umpm_div=4):
+    def train(self, batchsize=16, add_noise=True):
         """
 
         :param batchsize:
         :param add_noise: {boolean}
         :return:
         """
-        bs1 = int(batchsize / umpm_div)
-        bs2 = int(batchsize / 4)
-        bs3 = batchsize - bs1 - bs2
-        bs3_pos = int(bs3/2)
-        bs3_neg = bs3 - bs3_pos
+        bs1 = int(batchsize / 2)
+        bs2 = batchsize - bs1
+        bs2_pos = int(bs2/2)
+        bs2_neg = bs2 - bs2_pos
 
-        x1, y1 = self.mot16.sample(bs1)
-        x2, y2 = self.umpm.get_train(bs2)
-        x3, y3 = self.reid.get_train_batch(bs3_pos, bs3_neg)
+        mot16 = self.mot16[randint(0, len(self.mot16))]
 
-        X = np.concatenate([x1, x2, x3], axis=0)
-        Y = np.concatenate([y1, y2, y3], axis=0)
+        x1, y1 = mot16.sample(bs1)
+        x3, y3 = self.reid.get_train_batch(bs2_pos, bs2_neg)
+
+        X = np.concatenate([x1, x3], axis=0)
+        Y = np.concatenate([y1, y3], axis=0)
 
         if add_noise:
             size = np.prod(X.shape)
@@ -73,17 +80,17 @@ class Data:
         order = np.random.choice(n, size=n, replace=False)
         return X[order], Y[order]
 
-    def test(self, batchsize=16, umpm_div=4):
+    def test(self, batchsize=16):
         """
 
         :param batchsize:
         :return:
         """
-        bs1 = int(batchsize / umpm_div)
+        bs1 = int(batchsize / 2)
         bs2 = batchsize - bs1
         bs2_pos = int(bs2 / 2)
         bs2_neg = bs2 - bs2_pos
-        x1, y1 = self.umpm.get_test(bs1)
+        x1, y1 = self.mot16_test.sample(bs1)
         x2, y2 = self.reid.get_test_batch(bs2_pos, bs2_neg)
         X = np.concatenate([x1, x2], axis=0)
         Y = np.concatenate([y1, y2], axis=0)
@@ -103,11 +110,11 @@ class MOT16Sampler:
         Y_gt = utils.extract_eq(Y_gt, col=8, value=1)
         return Y_gt
 
-    def __init__(self, root, target_w, target_h):
+    def __init__(self, root, target_w, target_h, video="MOT16-02"):
         mot16 = MOT16(root)
         self.target_w = target_w
         self.target_h = target_h
-        X, _, Y_gt = mot16.get_train("MOT16-02", memmapped=True)
+        X, _, Y_gt = mot16.get_train(video, memmapped=True)
         Y_gt = MOT16Sampler.get_visible_pedestrains(Y_gt)  # only humans
         n_frames, h, w, _ = X.shape
 
@@ -150,6 +157,17 @@ class MOT16Sampler:
 
             if valid_persons > 1:
                 self.frames_with_persons.append(f)
+
+        del_pids = []  # (pid, frame) remove all pids who are only visible once
+        for pid, visible_in_frames in self.lookup.items():
+            assert len(visible_in_frames) > 0
+            if len(visible_in_frames) == 1:
+                del_pids.append((pid, visible_in_frames[0]))
+        for pid, frame in del_pids:
+            self.lookup.pop(pid)
+            self.pid_frame_lookup.pop((pid, frame))
+            valid_pids = self.pids_per_frame[frame]
+            self.pids_per_frame[frame] = [p for p in valid_pids if p != pid]
 
         print('(MOT16) total number of bounding boxes:', len(self.pid_frame_lookup))
 
