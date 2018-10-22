@@ -23,7 +23,7 @@ model has never seen before (thx [Joao](https://github.com/jvmartins)):
 
 ## Install
 This library was developed using Python 3.6, numpy, 
-Keras 2.x and tensorflow 1.8 so make sure you have them
+Keras 2.1.3. and tensorflow 1.8 so make sure you have them
 installed. Furthermore, to manage the datasets and to provide some utilities I use
 [pak](https://github.com/jutanke/pak) which you can install as follows:
 ```bash
